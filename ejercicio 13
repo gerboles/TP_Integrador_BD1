@@ -1,0 +1,65 @@
+DELIMITER |
+CREATE DEFINER=`root`@`localhost` PROCEDURE `cargarr_pedido`(IN linea int,out total int)
+BEGIN
+declare _ingreso datetime;
+declare _egreso datetime;
+declare _chasis int;
+declare cont int;
+declare i int;
+declare est_inicio int;
+declare est_fin int;
+declare tiempo int;
+
+-- ** EL CURSOR TIENE UNA LISTA DE LOS CHASIS FINALIZADOS SEGUN UNA LINEA DE MONTAJE ESPECIFICA
+
+DECLARE cur CURSOR FOR SELECT ev.vehiculo_id_chasis 
+    FROM estacion_vehiculo ev inner join estacion_trabajo et on ev.estacion_trabajo_id_estacion=id_estacion WHERE egreso >0 and  
+    et.linea_id_linea = linea and (ev.estacion_trabajo_id_estacion = 5 or ev.estacion_trabajo_id_estacion = 10)  ;
+
+
+set i = 1;
+set total=0;
+
+
+-- ** ASIGNO LAS ESTACIONES DE INICIO Y  FIN PARA LUEGO SELECCIONAR INGRESO Y AGRESO
+if linea = 1 then
+set est_inicio ='1';
+set est_fin = '5';
+elseif linea =2 then
+set est_inicio ='6';
+set est_fin = '10';
+end if;
+
+-- *** CANTIDAD DE REGISTROS PARA RECORRER EN EL WHILE
+select count(*) into cont FROM estacion_vehiculo ev inner join estacion_trabajo et on ev.estacion_trabajo_id_estacion=id_estacion WHERE egreso >0 and  
+    et.linea_id_linea = linea and ev.estacion_trabajo_id_estacion = est_fin ;
+
+
+open cur;
+
+while i<=cont do
+fetch cur into _chasis ;
+
+-- ***ASIGNO LA FECHA DE INGRESO DE LOS CHASIS DEL CURSOR
+select ingreso into _ingreso from estacion_vehiculo where vehiculo_id_chasis = _chasis and estacion_trabajo_id_estacion = est_inicio;
+
+-- *** ASIGNO LA FECHA DE EGRESO DE LOS CHASIS DEL CURSOR
+select egreso into _egreso from estacion_vehiculo where vehiculo_id_chasis = _chasis and estacion_trabajo_id_estacion = est_fin;
+
+-- *** CALCULO LA DIFERENCIA ENTRE EL INGRESO Y EGRESO DE 1 CHASIS
+SELECT TIMESTAMPDIFF(MINUTE,_ingreso,_egreso) into tiempo;
+
+-- *** SUMO LAS DIFERENCIAS TEMPORALES
+set total = total + tiempo;
+
+
+    set i = i+1;
+    -- *** PASO AL SIGUIENTE CHASIS DEL CURSOR
+end while;
+    CLOSE cur;
+    
+-- *** CALCULO EL PROMEDIO
+set total = total/cont;
+
+END
+|
